@@ -321,7 +321,7 @@ export const ProfilePage: FC = () => {
               </div>
               <div>
                 <button
-                  className="btn btn-outline-primary btn-sm"
+                  className="btn btn-outline-primary btn-sm py-1 px-2 small"
                   onClick={handleResendVerification}
                   disabled={isLoading}
                 >
@@ -380,7 +380,7 @@ export const ProfilePage: FC = () => {
                     />
                   </div>
                 </div>
-                <button type="submit" className="btn btn-primary fw-bold mt-3" disabled={isLoading}>
+                <button type="submit" className="btn btn-primary btn-sm py-1 px-2 small fw-bold mt-3" disabled={isLoading}>
                   {isLoading ? "Сохранение..." : "Сохранить данные"}
                 </button>
               </form>
@@ -469,13 +469,13 @@ export const ProfilePage: FC = () => {
                   </div>
                 </div>
                 <div className="d-flex gap-2 mt-3">
-                  <button type="submit" className="btn btn-primary fw-bold" disabled={isLoading}>
+                  <button type="submit" className="btn btn-primary btn-sm py-1 px-2 small fw-bold" disabled={isLoading}>
                     {isLoading ? "Сохранение..." : "Сохранить адрес"}
                   </button>
                   {user?.address && (
                     <button
                       type="button"
-                      className="btn btn-outline-danger"
+                      className="btn btn-outline-danger btn-sm py-1 px-2 small"
                       onClick={handleDeleteAddress}
                       disabled={isLoading}
                     >
@@ -521,7 +521,7 @@ export const ProfilePage: FC = () => {
                 />
                 <button
                   type="button"
-                  className="btn btn-outline-primary btn-sm"
+                  className="btn btn-outline-primary btn-sm py-1 px-2 small"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isLoading}
                 >
@@ -530,7 +530,7 @@ export const ProfilePage: FC = () => {
                 {user?.avatar && (
                   <button
                     type="button"
-                    className="btn btn-outline-danger btn-sm"
+                    className="btn btn-outline-danger btn-sm py-1 px-2 small"
                     onClick={handleDeleteAvatar}
                     disabled={isLoading}
                   >
@@ -586,7 +586,7 @@ export const ProfilePage: FC = () => {
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary fw-bold" disabled={isLoading}>
+                <button type="submit" className="btn btn-primary btn-sm py-1 px-2 small fw-bold" disabled={isLoading}>
                   {isLoading ? "Сохранение..." : "Изменить пароль"}
                 </button>
               </form>
@@ -598,10 +598,10 @@ export const ProfilePage: FC = () => {
             <div className="card-body p-4">
               <h5 className="card-title fw-bold mb-3">Управление сессиями</h5>
               <div className="d-flex flex-wrap gap-2">
-                <button className="btn btn-outline-dark" onClick={handleLogout} disabled={isLoading}>
+                <button className="btn btn-outline-dark btn-sm py-1 px-2 small" onClick={handleLogout} disabled={isLoading}>
                   Выйти из системы
                 </button>
-                <button className="btn btn-outline-danger" onClick={handleLogoutAll} disabled={isLoading}>
+                <button className="btn btn-outline-danger btn-sm py-1 px-2 small" onClick={handleLogoutAll} disabled={isLoading}>
                   Выйти со всех устройств
                 </button>
               </div>
@@ -617,7 +617,7 @@ export const ProfilePage: FC = () => {
               </p>
               {!showDeleteConfirm ? (
                 <button
-                  className="btn btn-danger btn-sm"
+                  className="btn btn-danger btn-sm py-1 px-2 small"
                   onClick={() => {
                     setShowDeleteConfirm(true)
                   }}
@@ -642,12 +642,12 @@ export const ProfilePage: FC = () => {
                     />
                   </div>
                   <div className="d-flex gap-2">
-                    <button type="submit" className="btn btn-danger btn-sm fw-bold" disabled={isLoading}>
+                    <button type="submit" className="btn btn-danger btn-sm py-1 px-2 small fw-bold" disabled={isLoading}>
                       Подтвердить удаление
                     </button>
                     <button
                       type="button"
-                      className="btn btn-secondary btn-sm"
+                      className="btn btn-secondary btn-sm py-1 px-2 small"
                       onClick={() => {
                         setShowDeleteConfirm(false)
                       }}

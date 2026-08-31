@@ -48,10 +48,14 @@ export const ProjectsPage: FC = () => {
     <div className="container py-5">
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <h2 className="fw-bold mb-0">Проекты</h2>
-        <button className="btn btn-primary fw-bold" onClick={() => { setCreateOpen(true) }}>
+        <button
+          className="btn btn-primary btn-sm py-1 px-2 small fw-bold"
+          onClick={() => { setCreateOpen(true) }}
+        >
           <i className="bi bi-plus-lg me-1" />
           Новый проект
         </button>
+
       </div>
 
       {/* Filters */}
