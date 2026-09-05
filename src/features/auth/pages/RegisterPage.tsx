@@ -10,6 +10,8 @@ export const RegisterPage: FC = () => {
   const { isLoading, error, isAuthenticated } = useAppSelector((state) => state.auth)
 
   const [email, setEmail] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [legalForm, setLegalForm] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [validationError, setValidationError] = useState<string | null>(null)
@@ -20,13 +22,23 @@ export const RegisterPage: FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      void navigate("/profile")
+      void navigate("/projects")
     }
   }, [isAuthenticated, navigate])
 
   const handleSubmit = (e: SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     setValidationError(null)
+
+    const trimmedName = firstName.trim()
+    if (!trimmedName) {
+      setValidationError("Пожалуйста, укажите ваше имя")
+      return
+    }
+    if (trimmedName.length > 64) {
+      setValidationError("Имя не должно превышать 64 символа")
+      return
+    }
 
     if (password.length < 8 || password.length > 72) {
       setValidationError("Пароль должен содержать от 8 до 72 символов")
@@ -38,9 +50,16 @@ export const RegisterPage: FC = () => {
       return
     }
 
-    void dispatch(registerAsync({ email, password })).then((result) => {
+    void dispatch(
+      registerAsync({
+        email: email.trim(),
+        firstName: trimmedName,
+        legalForm: legalForm || undefined,
+        password,
+      }),
+    ).then((result) => {
       if (registerAsync.fulfilled.match(result)) {
-        void navigate("/profile")
+        void navigate("/projects")
       }
     })
   }
@@ -71,6 +90,20 @@ export const RegisterPage: FC = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
+                  <label className="form-label fw-semibold">Ваше имя</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-lg"
+                    placeholder="Например, Иван"
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value)
+                    }}
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
                   <label className="form-label fw-semibold">Email</label>
                   <input
                     type="email"
@@ -82,6 +115,22 @@ export const RegisterPage: FC = () => {
                     }}
                     required
                   />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Юридический статус <span className="text-muted fw-normal">(необязательно)</span></label>
+                  <select
+                    className="form-select form-select-lg"
+                    value={legalForm}
+                    onChange={(e) => {
+                      setLegalForm(e.target.value)
+                    }}
+                  >
+                    <option value="">Не указано</option>
+                    <option value="SELF_EMPLOYED">Самозанятый</option>
+                    <option value="IE">Индивидуальный предприниматель (ИП)</option>
+                    <option value="INDIVIDUAL">Физическое лицо</option>
+                  </select>
                 </div>
 
                 <div className="mb-3">

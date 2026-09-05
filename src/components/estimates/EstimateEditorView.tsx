@@ -369,117 +369,124 @@ export const EstimateEditorView: FC<Props> = ({
         {isDirty && <span className="badge text-bg-warning">Не сохранено</span>}
       </div>
 
-      <EstimateHeader />
+      <div className="row g-4">
+        {/* Left Column: Header and Table of Items */}
+        <div className="col-12 col-xl-8">
+          <EstimateHeader />
 
-      <EstimateItemsTable
-        items={draft.items}
-        currency={draft.currency}
-        showPurchase={showPurchase}
-        resetToken={baseUpdatedAt}
-        onAddEmpty={() => dispatch(addItems([makeEmptyDraftItem()]))}
-        onOpenCatalog={() => {
-          setCatalogOpen(true)
-        }}
-        onCommit={(itemId, patch) =>
-          dispatch(updateItem({ id: itemId, patch }))
-        }
-        onRemove={itemId => dispatch(removeItem(itemId))}
-        onMove={(from, to) => dispatch(moveItem({ from, to }))}
-        onEditFields={itemId => {
-          setEditItemId(itemId)
-        }}
-        onToggleShowPurchase={() => dispatch(toggleShowPurchase())}
-      />
+          <div className="mt-3">
+            <EstimateItemsTable
+              items={draft.items}
+              currency={draft.currency}
+              showPurchase={showPurchase}
+              resetToken={baseUpdatedAt}
+              onAddEmpty={() => dispatch(addItems([makeEmptyDraftItem()]))}
+              onOpenCatalog={() => {
+                setCatalogOpen(true)
+              }}
+              onCommit={(itemId, patch) =>
+                dispatch(updateItem({ id: itemId, patch }))
+              }
+              onRemove={itemId => dispatch(removeItem(itemId))}
+              onMove={(from, to) => dispatch(moveItem({ from, to }))}
+              onEditFields={itemId => {
+                setEditItemId(itemId)
+              }}
+              onToggleShowPurchase={() => dispatch(toggleShowPurchase())}
+            />
+          </div>
+        </div>
 
-      <div className="mt-3">
-        <EstimateTotalsSummary
-          totals={totals}
-          currency={draft.currency}
-          taxRateBp={draft.taxRateBp}
-          discountBp={draft.discountBp}
-          showPurchase={showPurchase}
-          isDirty={isDirty}
-          isPending={isPending}
-          saveError={saveError}
-          onSave={() => {
-            void handleSave()
-          }}
-          onSaveAsNew={() => {
-            void handleSaveAsNew()
-          }}
-          onSaveAsTemplate={() => {
-            setSaveAsTemplateOpen(true)
-          }}
-          onApplyTemplate={() => {
-            setApplyTemplateOpen(true)
-          }}
-        />
+        {/* Right Column: Sticky Totals Summary & Actions */}
+        <div className="col-12 col-xl-4">
+          <div className="sticky-top" style={{ top: "1rem" }}>
+            <EstimateTotalsSummary
+              totals={totals}
+              currency={draft.currency}
+              taxRateBp={draft.taxRateBp}
+              discountBp={draft.discountBp}
+              showPurchase={showPurchase}
+              isDirty={isDirty}
+              isPending={isPending}
+              saveError={saveError}
+              onSave={() => {
+                void handleSave()
+              }}
+              onSaveAsNew={() => {
+                void handleSaveAsNew()
+              }}
+              onSaveAsTemplate={() => {
+                setSaveAsTemplateOpen(true)
+              }}
+              onApplyTemplate={() => {
+                setApplyTemplateOpen(true)
+              }}
+            />
+
+            {mode === "edit" && (
+              <div className="card shadow-sm border-0 rounded-4 mt-3">
+                <div className="card-body p-3 d-flex flex-column gap-2">
+                  <h6 className="fw-bold mb-1 small text-muted text-uppercase">Действия со сметой</h6>
+                  
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm fw-semibold w-100 d-flex align-items-center justify-content-center gap-2"
+                    onClick={handleViewPdf}
+                    disabled={openPdf.isPending}
+                  >
+                    <i className="bi bi-file-earmark-pdf" />
+                    <span>
+                      {openPdf.isPending
+                        ? "Формируем PDF…"
+                        : isDirty
+                          ? "Сохранить и открыть PDF"
+                          : "Смотреть PDF"}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm fw-semibold w-100 d-flex align-items-center justify-content-center gap-2"
+                    onClick={handleCreatePlanner}
+                    disabled={plannerUsableCount === 0 || replaceTasks.isPending}
+                    title={
+                      plannerUsableCount === 0
+                        ? "Добавьте позиции в смету, чтобы создать этапы"
+                        : undefined
+                    }
+                  >
+                    <i className="bi bi-list-check" />
+                    <span>{replaceTasks.isPending ? "Создание..." : "Сформировать этапы"}</span>
+                  </button>
+
+                  {plannerResult && (
+                    <div className="alert alert-success py-2 px-3 small mt-2 mb-0" role="alert">
+                      Создано этапов: {plannerResult.created}
+                      {plannerResult.replaced
+                        ? ". Предыдущие этапы заменены."
+                        : ". Этапы доступны на доске работ."}
+                    </div>
+                  )}
+
+                  {openPdf.error && !conflict && (
+                    <div className="alert alert-danger py-2 px-3 small mt-2 mb-0" role="alert">
+                      {pdfErrorMessage(openPdf.error)}
+                    </div>
+                  )}
+
+                  {replaceTasks.error && (
+                    <div className="alert alert-danger py-2 px-3 small mt-2 mb-0" role="alert">
+                      {replaceTasks.error instanceof ApiError
+                        ? replaceTasks.error.message
+                        : "Не удалось создать этапы"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      {mode === "edit" && (
-        <div className="mt-3">
-          <button
-            type="button"
-            className="btn btn-outline-primary fw-semibold"
-            onClick={handleViewPdf}
-            disabled={openPdf.isPending}
-          >
-            <i className="bi bi-file-earmark-pdf me-1" />
-            {openPdf.isPending
-              ? "Формируем…"
-              : isDirty
-                ? "Сохранить и посмотреть PDF"
-                : "Смотреть смету PDF"}
-          </button>
-          {estimate && (
-            <span className="text-muted small ms-2">
-              Смета № {estimate.number}
-            </span>
-          )}
-          {openPdf.error && !conflict && (
-            <div className="alert alert-danger mt-2 mb-0" role="alert">
-              {pdfErrorMessage(openPdf.error)}
-            </div>
-          )}
-        </div>
-      )}
-
-      {mode === "edit" && (
-        <div className="mt-3">
-          <button
-            type="button"
-            className="btn btn-outline-primary fw-semibold"
-            onClick={handleCreatePlanner}
-            disabled={plannerUsableCount === 0 || replaceTasks.isPending}
-            title={
-              plannerUsableCount === 0
-                ? "Добавьте позиции в смету, чтобы создать этапы"
-                : undefined
-            }
-          >
-            <i className="bi bi-list-check me-1" />
-            {replaceTasks.isPending ? "Создание..." : "Создать планировщик"}
-          </button>
-          <span className="text-muted small ms-2">
-            Создаст этапы из позиций сметы — по одному этапу на позицию.
-          </span>
-          {plannerResult && (
-            <div className="alert alert-success mt-3 mb-0" role="alert">
-              Создано этапов: {plannerResult.created}
-              {plannerResult.replaced
-                ? ". Существующие этапы заменены."
-                : ". Откройте вкладку «Планировщик», чтобы вести их."}
-            </div>
-          )}
-          {replaceTasks.error && (
-            <div className="alert alert-danger mt-2 mb-0" role="alert">
-              {replaceTasks.error instanceof ApiError
-                ? replaceTasks.error.message
-                : "Не удалось создать этапы"}
-            </div>
-          )}
-        </div>
-      )}
 
       {catalogOpen && (
         <SelectCatalogItemsModal

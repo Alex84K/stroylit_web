@@ -2,6 +2,7 @@ import type { FC } from "react"
 import { useEffect } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { useAppDispatch } from "./app/hooks"
+import { AppLayout } from "./components/AppLayout"
 import { Navbar } from "./components/Navbar"
 import { fetchMeAsync } from "./features/auth/authSlice"
 import { ProtectedRoute } from "./features/auth/components/ProtectedRoute"
@@ -11,14 +12,17 @@ import { LoginPage } from "./features/auth/pages/LoginPage"
 import { ProfilePage } from "./features/auth/pages/ProfilePage"
 import { ProjectsPage } from "./features/projects/pages/ProjectsPage"
 import { ProjectDetailPage } from "./features/projects/pages/ProjectDetailPage"
+import { EstimateBuilderPage } from "./features/estimates/pages/EstimateBuilderPage"
 import { RegisterPage } from "./features/auth/pages/RegisterPage"
 import { ResetPasswordPage } from "./features/auth/pages/ResetPasswordPage"
 import { VerifyEmailPage } from "./features/auth/pages/VerifyEmailPage"
+import { PublicEstimatePage } from "./features/estimates/pages/PublicEstimatePage"
 import { LandingPage } from "./pages/LandingPage"
 import { PrivacyPage } from "./pages/PrivacyPage"
+import { PriceListPage } from "./pages/PriceListPage"
 import { getAccessToken, getRefreshToken } from "./utils/api"
 
-/** Shared Navbar + Footer shell wrapper */
+/** Shared Navbar + Footer shell wrapper for public auth pages */
 const Shell: FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="min-vh-100 d-flex flex-column bg-body-tertiary">
     <Navbar />
@@ -95,26 +99,16 @@ export const App: FC = () => {
             </Shell>
           }
         />
+        <Route path="/estimate" element={<PublicEstimatePage />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Shell>
-                <ProfilePage />
-              </Shell>
-            </ProtectedRoute>
-          }
-        />
-
+        {/* Protected routes — use AppLayout with Sidebar */}
         <Route
           path="/projects"
           element={
             <ProtectedRoute>
-              <Shell>
+              <AppLayout>
                 <ProjectsPage />
-              </Shell>
+              </AppLayout>
             </ProtectedRoute>
           }
         />
@@ -122,12 +116,53 @@ export const App: FC = () => {
           path="/projects/:id"
           element={
             <ProtectedRoute>
-              <Shell>
+              <AppLayout>
                 <ProjectDetailPage />
-              </Shell>
+              </AppLayout>
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/projects/:id/estimate"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <EstimateBuilderPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:id/estimates/:estimateId"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <EstimateBuilderPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/price-list"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PriceListPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ProfilePage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

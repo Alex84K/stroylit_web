@@ -32,8 +32,12 @@ export const setStoredTheme = (theme: Theme): void => {
   }
 }
 
-export const getSystemTheme = (): Theme =>
-  window.matchMedia(DARK_QUERY).matches ? "dark" : "light"
+export const getSystemTheme = (): Theme => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "light"
+  }
+  return window.matchMedia(DARK_QUERY).matches ? "dark" : "light"
+}
 
 /** Что показываем сейчас: явный выбор, иначе системная тема. */
 export const resolveTheme = (): Theme => getStoredTheme() ?? getSystemTheme()
@@ -47,6 +51,9 @@ export const applyTheme = (theme: Theme): void => {
  * Возвращает функцию отписки.
  */
 export const watchSystemTheme = (onChange: (theme: Theme) => void): (() => void) => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return () => {}
+  }
   const query = window.matchMedia(DARK_QUERY)
   const handler = (e: MediaQueryListEvent) => {
     if (getStoredTheme() === null) onChange(e.matches ? "dark" : "light")

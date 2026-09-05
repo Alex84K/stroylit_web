@@ -6,10 +6,12 @@ export type User = {
   emailVerified: boolean
   firstName: string
   lastName: string
+  legalForm?: string
   phone: string
   inn: string
   address: Address | null
   avatar: AvatarMeta | null
+  telegramConnected: boolean
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +34,7 @@ export type AvatarMeta = {
 export type ProfilePatch = {
   firstName?: string
   lastName?: string
+  legalForm?: string
   phone?: string
   inn?: string
 }

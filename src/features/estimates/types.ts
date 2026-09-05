@@ -103,6 +103,15 @@ export type CatalogItemInput = Omit<
 
 export type CatalogItemPatch = Partial<CatalogItemInput>
 
+// /api/v1/system-catalog
+export type SystemCatalogItem = {
+  id: string
+  category: string
+  title: string
+  unit: string
+  kind: "WORK" | string
+}
+
 // /api/v1/estimate-templates
 export type EstimateTemplateItem = {
   id: string

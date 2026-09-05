@@ -26,7 +26,6 @@ const renderTable = (
     tasks: [makeTask()],
     isPending: false,
     resetToken: null,
-    onToggleDone: vi.fn(),
     onSetStatus: vi.fn(),
     onSetProgress: vi.fn(),
     onMove: vi.fn(),
@@ -90,35 +89,34 @@ describe("TaskListTable", () => {
     expect(pct).toHaveValue("0")
   })
 
-  it("sends a task to review through the checkbox", () => {
-    const onToggleDone = vi.fn()
-    renderTable({ onToggleDone })
+  it("advances status on click of status action button", () => {
+    const onSetStatus = vi.fn()
+    renderTable({ onSetStatus })
 
-    const review = screen.getAllByLabelText("Отправить на проверку")[0]
-    expect(review).not.toHaveClass("btn-primary")
-    fireEvent.click(review)
+    const btn = screen.getAllByLabelText("Сменить статус")[0]
+    fireEvent.click(btn)
 
-    expect(onToggleDone).toHaveBeenCalledTimes(1)
-    expect(onToggleDone).toHaveBeenCalledWith(
+    expect(onSetStatus).toHaveBeenCalledTimes(1)
+    expect(onSetStatus).toHaveBeenCalledWith(
       "0198f2c1-8000-7abc-9000-000000000040",
-      true,
+      "in_progress",
     )
   })
 
-  it("pulls a task back from review through the checkbox", () => {
-    const onToggleDone = vi.fn()
+  it("cycles status from in_progress to done on click", () => {
+    const onSetStatus = vi.fn()
     renderTable({
-      onToggleDone,
-      tasks: [makeTask({ status: "review", progressPct: 100 })],
+      onSetStatus,
+      tasks: [makeTask({ status: "in_progress", progressPct: 50 })],
     })
 
-    const review = screen.getAllByLabelText("Вернуть в работу")[0]
-    fireEvent.click(review)
+    const btn = screen.getAllByLabelText("Сменить статус")[0]
+    fireEvent.click(btn)
 
-    expect(onToggleDone).toHaveBeenCalledTimes(1)
-    expect(onToggleDone).toHaveBeenCalledWith(
+    expect(onSetStatus).toHaveBeenCalledTimes(1)
+    expect(onSetStatus).toHaveBeenCalledWith(
       "0198f2c1-8000-7abc-9000-000000000040",
-      false,
+      "done",
     )
   })
 

@@ -20,7 +20,6 @@ type Props = {
   isPending: boolean
   /** A changing value (list updatedAt) — clears input buffers after a server round-trip. */
   resetToken: string | null
-  onToggleDone: (id: string, done: boolean) => void
   onSetStatus: (id: string, status: TaskStatus) => void
   onSetProgress: (id: string, pct: number) => void
   onMove: (from: number, to: number) => void
@@ -28,17 +27,14 @@ type Props = {
   onRemove: (task: Task) => void
   onAdd: () => void
   onOpenCatalog: () => void
+  onOpenMerge?: () => void
+  onOpenSplit?: (task: Task) => void
 }
 
-// Desktop table (d-lg-table) + mobile cards (d-lg-none) — the estimate
-// table's split (DESIGN_ESTIMATE.md §8.2). Numeric buffers commit on blur;
-// status and the done-checkbox commit immediately — the pair status ×
-// progressPct is resolved by the parent via statusProgress.ts (D5).
 export const TaskListTable: FC<Props> = ({
   tasks,
   isPending,
   resetToken,
-  onToggleDone,
   onSetStatus,
   onSetProgress,
   onMove,
@@ -46,6 +42,8 @@ export const TaskListTable: FC<Props> = ({
   onRemove,
   onAdd,
   onOpenCatalog,
+  onOpenMerge,
+  onOpenSplit,
 }) => {
   const [progressBuffer, setProgressBuffer] = useState<
     Partial<Record<string, string>>
@@ -115,31 +113,41 @@ export const TaskListTable: FC<Props> = ({
     setRemoveTarget(task)
   }
 
-  // Recomputed on every render from wall-clock time, nothing polls or
-  // ticks (RECARCH_DEADLINE.md §6.2/§12.4) — "later" and "none" render as
-  // plain text, a badge only appears once a deadline is close enough to
-  // deserve one.
+  const nextStatus = (current: TaskStatus): TaskStatus => {
+    if (current === "todo") return "in_progress"
+    if (current === "in_progress") return "done"
+    return "todo"
+  }
+
   const deadlineCell = (task: Task) => {
-    if (task.deadline === "") return <span className="text-muted">—</span>
+    if (task.deadline === "") return null
     const urgency = deadlineUrgency(task.deadline)
     const text = formatDate(task.deadline)
-    if (urgency === "later" || urgency === "none")
-      return <span className="text-muted small">{text}</span>
+    if (urgency === "later" || urgency === "none") {
+      return (
+        <span className="text-muted small" title="Дедлайн">
+          <i className="bi bi-calendar3 me-1" />
+          {text}
+        </span>
+      )
+    }
     return (
       <span
         className={`badge ${DEADLINE_URGENCY_BADGE[urgency]}`}
         title={DEADLINE_URGENCY_LABELS[urgency]}
       >
+        <i className="bi bi-calendar-event me-1" />
         {text}
       </span>
     )
   }
 
   const moveButtons = (index: number) => (
-    <div className="d-flex flex-column">
+    <div className="btn-group-vertical btn-group-sm">
       <button
         type="button"
-        className="btn btn-sm btn-link p-0 text-decoration-none lh-1"
+        className="btn btn-outline-secondary py-0 px-1 lh-1"
+        style={{ fontSize: "0.65rem" }}
         disabled={isFiltering || index === 0}
         onClick={() => {
           onMove(index, index - 1)
@@ -151,7 +159,8 @@ export const TaskListTable: FC<Props> = ({
       </button>
       <button
         type="button"
-        className="btn btn-sm btn-link p-0 text-decoration-none lh-1"
+        className="btn btn-outline-secondary py-0 px-1 lh-1"
+        style={{ fontSize: "0.65rem" }}
         disabled={isFiltering || index === tasks.length - 1}
         onClick={() => {
           onMove(index, index + 1)
@@ -165,20 +174,33 @@ export const TaskListTable: FC<Props> = ({
   )
 
   const actionButtons = (task: Task) => {
-    const isReview = task.status === "review"
+    const isDone = task.status === "done"
     return (
-      <div className="d-inline-flex gap-1">
+      <div className="d-inline-flex align-items-center gap-1">
         <button
           type="button"
-          className={`btn btn-sm ${isReview ? "btn-primary" : "btn-outline-secondary"}`}
-          title={isReview ? "Вернуть в работу" : "Отправить на проверку"}
-          aria-label={isReview ? "Вернуть в работу" : "Отправить на проверку"}
+          className={`btn btn-sm ${isDone ? "btn-success" : "btn-outline-primary"}`}
+          title={isDone ? "Завершено (клик для смены статуса)" : "Сменить статус"}
+          aria-label="Сменить статус"
           onClick={() => {
-            onToggleDone(task.id, !isReview)
+            onSetStatus(task.id, nextStatus(task.status))
           }}
         >
-          <i className={`bi ${isReview ? "bi-check-lg" : "bi-check"}`} />
+          <i className={`bi ${isDone ? "bi-check-circle-fill" : "bi-arrow-repeat"}`} />
         </button>
+        {onOpenSplit && (
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            title="Разбить на подэтапы"
+            aria-label="Разбить на подэтапы"
+            onClick={() => {
+              onOpenSplit(task)
+            }}
+          >
+            <i className="bi bi-arrows-split" />
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-sm btn-outline-secondary"
@@ -205,28 +227,19 @@ export const TaskListTable: FC<Props> = ({
     )
   }
 
-  const emptyRow = (colSpan: number) => (
-    <tr>
-      <td colSpan={colSpan} className="text-center text-muted py-4">
-        {isFiltering
-          ? "Ничего не найдено по заданному условию."
-          : "Задач пока нет — добавьте из каталога или новую задачу."}
-      </td>
-    </tr>
-  )
-
   return (
     <div className="card shadow-sm border-0">
-      <div className="card-body">
+      <div className="card-body p-3 p-md-4">
+        {/* Search & Counter Toolbar */}
         <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
-          <div className="input-group" style={{ maxWidth: "18rem" }}>
+          <div className="input-group" style={{ maxWidth: "20rem" }}>
             <span className="input-group-text bg-surface">
               <i className="bi bi-search" />
             </span>
             <input
               type="text"
               className="form-control"
-              placeholder="Поиск по задачам..."
+              placeholder="Поиск по этапам..."
               value={search}
               onChange={e => {
                 setSearch(e.target.value)
@@ -240,6 +253,7 @@ export const TaskListTable: FC<Props> = ({
           )}
         </div>
 
+        {/* Action Toolbar */}
         <div className="d-flex flex-wrap gap-2 mb-3">
           <button
             type="button"
@@ -252,219 +266,151 @@ export const TaskListTable: FC<Props> = ({
           </button>
           <button
             type="button"
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-outline-secondary btn-sm fw-semibold"
             onClick={onAdd}
             disabled={atMax || isPending}
           >
             <i className="bi bi-plus-lg me-1" />
-            Новая задача
+            Новый этап
           </button>
+          {tasks.length >= 2 && onOpenMerge && (
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm fw-semibold"
+              onClick={onOpenMerge}
+              disabled={isPending}
+            >
+              <i className="bi bi-union me-1" />
+              Объединить этапы
+            </button>
+          )}
         </div>
 
-        {/* Desktop */}
-        <table className="table align-middle d-none d-lg-table">
-          <thead>
-            <tr>
-              <th scope="col" style={{ width: "3.5rem" }}>
-                №
-              </th>
-              <th scope="col">Что делать</th>
-              <th scope="col" style={{ width: "9rem" }}>
-                Исполнитель
-              </th>
-              <th scope="col" style={{ width: "7rem" }}>
-                Дедлайн
-              </th>
-              <th scope="col" style={{ width: "10rem" }}>
-                Статус
-              </th>
-              <th scope="col" style={{ width: "6rem" }}>
-                Прогресс
-              </th>
-              <th scope="col" style={{ width: "8rem" }}>
-                Создана
-              </th>
-              <th scope="col" style={{ width: "6rem" }} />
-            </tr>
-          </thead>
-          <tbody>
-            {visibleTasks.length === 0
-              ? emptyRow(8)
-              : visibleTasks.map(task => {
-                  const index = tasks.indexOf(task)
-                  return (
-                    <tr
-                      key={task.id}
-                      className={
-                        task.status === "done" ? "table-row-done" : undefined
-                      }
-                    >
-                      <td>
-                        <div className="d-flex align-items-center gap-1">
-                          <span className="small">{index + 1}</span>
-                          {moveButtons(index)}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="fw-semibold text-break">
-                          {task.title || (
-                            <span className="text-muted">Без названия</span>
-                          )}
-                        </div>
-                        {task.description && (
-                          <div className="text-muted small text-break">
-                            {task.description}
-                          </div>
-                        )}
-                      </td>
-                      <td className="small text-break">
-                        {task.assignee || "—"}
-                      </td>
-                      <td>{deadlineCell(task)}</td>
-                      <td>
-                        <select
-                          className="form-select form-select-sm"
-                          aria-label={`Статус: ${task.title || "Без названия"}`}
-                          value={task.status}
-                          onChange={e => {
-                            onSetStatus(task.id, e.target.value as TaskStatus)
-                          }}
-                        >
-                          {TASK_STATUSES.map(s => (
-                            <option key={s} value={s}>
-                              {TASK_STATUS_LABELS[s]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <div className="input-group input-group-sm">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            className="form-control"
-                            aria-label={`Прогресс: ${task.title || "Без названия"}`}
-                            value={pctValue(task)}
-                            onChange={e => {
-                              setProgressBuffer(b => ({
-                                ...b,
-                                [task.id]: e.target.value,
-                              }))
-                            }}
-                            onBlur={e => {
-                              commitPct(task, e.target.value)
-                            }}
-                          />
-                          <span className="input-group-text">%</span>
-                        </div>
-                      </td>
-                      <td className="small text-muted">
-                        {formatDateTime(task.createdAt)}
-                      </td>
-                      <td className="text-end">{actionButtons(task)}</td>
-                    </tr>
-                  )
-                })}
-          </tbody>
-        </table>
-
-        {/* Mobile */}
-        <div className="d-lg-none d-flex flex-column gap-2">
+        {/* Stage Cards List */}
+        <div className="d-flex flex-column gap-2">
           {visibleTasks.length === 0 ? (
-            <div className="text-center text-muted py-4">
+            <div className="text-center text-muted py-4 border rounded-3 bg-light-subtle">
               {isFiltering
                 ? "Ничего не найдено по заданному условию."
-                : "Задач пока нет — добавьте из каталога или новую задачу."}
+                : "Этапов пока нет — добавьте их из сметы, каталога или создайте новый."}
             </div>
           ) : (
             visibleTasks.map(task => {
               const index = tasks.indexOf(task)
+              const isDone = task.status === "done"
+
               return (
                 <div
-                  className={`card shadow-sm ${task.status === "done" ? "card-done" : ""}`}
                   key={task.id}
+                  className={`card border rounded-3 p-3 transition-all ${
+                    isDone
+                      ? "border-success-subtle bg-success-subtle bg-opacity-10"
+                      : "border-secondary-subtle bg-body"
+                  }`}
                 >
-                  <div className="card-body p-3">
-                    <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  {/* Card Header */}
+                  <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div className="d-flex align-items-start gap-2" style={{ minWidth: 0 }}>
+                      <div className="d-flex align-items-center gap-1 pt-0.5">
+                        <span className="badge bg-secondary-subtle text-body fw-bold">
+                          #{index + 1}
+                        </span>
+                        {moveButtons(index)}
+                      </div>
                       <div style={{ minWidth: 0 }}>
-                        <div className="fw-semibold text-break">
+                        <h6 className="fw-bold mb-1 text-break">
                           {task.title || (
                             <span className="text-muted">Без названия</span>
                           )}
-                        </div>
+                        </h6>
                         {task.description && (
                           <div className="text-muted small text-break">
                             {task.description}
                           </div>
                         )}
                       </div>
-                      <div className="d-inline-flex flex-column flex-shrink-0 gap-2">
-                        <div className="d-flex gap-1">{moveButtons(index)}</div>
-                        <div className="d-flex gap-1 justify-content-end">
-                          {actionButtons(task)}
-                        </div>
+                    </div>
+
+                    <div className="flex-shrink-0">
+                      {actionButtons(task)}
+                    </div>
+                  </div>
+
+                  {/* Card Attributes / Controls */}
+                  <div className="row g-2 align-items-center pt-2 border-top">
+                    {/* Status Select */}
+                    <div className="col-12 col-sm-4 col-md-4">
+                      <label
+                        className="form-label visually-hidden"
+                        htmlFor={`status-${task.id}`}
+                      >
+                        Статус: {task.title || "Без названия"}
+                      </label>
+                      <select
+                        id={`status-${task.id}`}
+                        className="form-select form-select-sm fw-semibold"
+                        aria-label={`Статус: ${task.title || "Без названия"}`}
+                        value={task.status}
+                        onChange={e => {
+                          onSetStatus(task.id, e.target.value as TaskStatus)
+                        }}
+                      >
+                        {TASK_STATUSES.map(s => (
+                          <option key={s} value={s}>
+                            {TASK_STATUS_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Progress */}
+                    <div className="col-6 col-sm-3 col-md-3">
+                      <div className="input-group input-group-sm">
+                        <span className="input-group-text small text-muted px-2">
+                          Готовность
+                        </span>
+                        <input
+                          id={`progress-${task.id}`}
+                          type="text"
+                          inputMode="numeric"
+                          className="form-control text-center"
+                          aria-label={`Прогресс: ${task.title || "Без названия"}`}
+                          value={pctValue(task)}
+                          onChange={e => {
+                            setProgressBuffer(b => ({
+                              ...b,
+                              [task.id]: e.target.value,
+                            }))
+                          }}
+                          onBlur={e => {
+                            commitPct(task, e.target.value)
+                          }}
+                        />
+                        <span className="input-group-text px-1.5">%</span>
                       </div>
                     </div>
 
-                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                      <span
-                        className={`badge ${TASK_STATUS_BADGE[task.status]}`}
-                      >
-                        {TASK_STATUS_LABELS[task.status]}
-                      </span>
+                    {/* Assignee & Deadline */}
+                    <div className="col-6 col-sm-5 col-md-5 d-flex flex-wrap justify-content-end align-items-center gap-2">
+                      {task.assignee ? (
+                        <span className="badge bg-light text-dark border small text-truncate" style={{ maxWidth: "140px" }} title={`Исполнитель: ${task.assignee}`}>
+                          <i className="bi bi-person me-1" />
+                          {task.assignee}
+                        </span>
+                      ) : null}
                       {deadlineCell(task)}
                     </div>
+                  </div>
 
-                    <div className="row g-2">
-                      <div className="col-5">
-                        <label
-                          className="form-label small mb-1"
-                          htmlFor={`progress-${task.id}`}
-                        >
-                          Прогресс
-                        </label>
-                        <div className="input-group input-group-sm">
-                          <input
-                            id={`progress-${task.id}`}
-                            type="text"
-                            inputMode="numeric"
-                            className="form-control"
-                            value={pctValue(task)}
-                            onChange={e => {
-                              setProgressBuffer(b => ({
-                                ...b,
-                                [task.id]: e.target.value,
-                              }))
-                            }}
-                            onBlur={e => {
-                              commitPct(task, e.target.value)
-                            }}
-                          />
-                          <span className="input-group-text">%</span>
-                        </div>
-                      </div>
-                      <div className="col-7">
-                        <label
-                          className="form-label small mb-1"
-                          htmlFor={`assignee-${task.id}`}
-                        >
-                          Исполнитель
-                        </label>
-                        <div
-                          id={`assignee-${task.id}`}
-                          className="small text-break pt-1"
-                        >
-                          {task.assignee || "—"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="d-flex justify-content-between align-items-center border-top pt-2 mt-2 text-muted small">
-                      <span>
-                        <i className="bi bi-clock me-1" />
-                        {formatDateTime(task.createdAt)}
-                      </span>
-                    </div>
+                  {/* Creation Date Footer */}
+                  <div className="d-flex justify-content-between align-items-center mt-2 pt-1 small text-muted" style={{ fontSize: "0.75rem" }}>
+                    <span>
+                      <i className="bi bi-clock me-1" />
+                      Создан: {formatDateTime(task.createdAt)}
+                    </span>
+                    <span className={`badge ${TASK_STATUS_BADGE[task.status]}`}>
+                      {TASK_STATUS_LABELS[task.status]}
+                    </span>
                   </div>
                 </div>
               )
@@ -475,10 +421,10 @@ export const TaskListTable: FC<Props> = ({
 
       {removeTarget && (
         <ConfirmDeleteModal
-          title="Удаление задачи"
+          title="Удаление этапа"
           message={
             <>
-              Удалить задачу
+              Удалить этап
               {removeTarget.title ? (
                 <>
                   {" "}

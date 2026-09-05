@@ -38,3 +38,9 @@ export const useDeleteCatalogItem = () => {
     },
   })
 }
+
+export const useGetSystemCatalog = () =>
+  useQuery({
+    queryKey: ["system-catalog"],
+    queryFn: () => catalogApi.getSystemCatalog(),
+  })

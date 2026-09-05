@@ -105,3 +105,18 @@ export const useDeleteEstimate = () => {
     },
   })
 }
+
+export const useSendEstimate = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => estimatesApi.send(id),
+    onSuccess: data => {
+      void queryClient.invalidateQueries({
+        queryKey: [...ESTIMATES_QUERY_KEY, "detail", data.id],
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ESTIMATES_QUERY_KEY,
+      })
+    },
+  })
+}

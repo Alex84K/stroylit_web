@@ -164,4 +164,39 @@ describe("profile thunks", () => {
     expect(store.getState().auth.user?.avatar).toBeNull()
     expect(store.getState().auth.user?.id).toBe("u1")
   })
+
+  it("registerAsync sends firstName, legalForm, email and password", async () => {
+    const authRes = {
+      accessToken: "token123",
+      refreshToken: "refresh123",
+      user: { ...baseUser, firstName: "Сергей", legalForm: "SELF_EMPLOYED" },
+    }
+    mockedApiFetch.mockResolvedValue(authRes)
+
+    const { registerAsync } = await import("./authSlice")
+    const action = await store.dispatch(
+      registerAsync({
+        email: "sergey@example.com",
+        firstName: "Сергей",
+        legalForm: "SELF_EMPLOYED",
+        password: "password123",
+      }),
+    )
+
+    expect(registerAsync.fulfilled.match(action)).toBe(true)
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/api/v1/auth/register",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "sergey@example.com",
+          firstName: "Сергей",
+          legalForm: "SELF_EMPLOYED",
+          password: "password123",
+        }),
+      }),
+    )
+    expect(store.getState().auth.isAuthenticated).toBe(true)
+    expect(store.getState().auth.user?.firstName).toBe("Сергей")
+  })
 })

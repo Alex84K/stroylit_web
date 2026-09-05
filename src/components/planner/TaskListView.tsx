@@ -15,7 +15,6 @@ import { tasksFromTemplate } from "../../features/planner/utils/fromTaskCatalog"
 import {
   progressPatch,
   statusPatch,
-  toggleDonePatch,
 } from "../../features/planner/utils/statusProgress"
 import type {
   Task,
@@ -26,8 +25,10 @@ import type {
 import { TaskListTable } from "./TaskListTable"
 import { ApplyTaskTemplateModal } from "../modals/ApplyTaskTemplateModal"
 import { EditTaskModal } from "../modals/EditTaskModal"
+import { MergeTasksModal } from "../modals/MergeTasksModal"
 import { SaveTaskListAsTemplateModal } from "../modals/SaveTaskListAsTemplateModal"
 import { SelectTaskCatalogItemsModal } from "../modals/SelectTaskCatalogItemsModal"
+import { SplitTaskModal } from "../modals/SplitTaskModal"
 
 type Props = {
   /** The estimate (phase) whose task list this is — tasks hang off the
@@ -57,6 +58,8 @@ export const TaskListView: FC<Props> = ({ estimateId, onGoToCatalog }) => {
   const replaceTasks = useReplaceTasksByEstimate()
 
   const [editTarget, setEditTarget] = useState<Task | "new" | null>(null)
+  const [splitTarget, setSplitTarget] = useState<Task | null>(null)
+  const [mergeOpen, setMergeOpen] = useState(false)
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false)
   const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false)
@@ -94,14 +97,6 @@ export const TaskListView: FC<Props> = ({ estimateId, onGoToCatalog }) => {
 
   const bumpReset = () => {
     setResetToken(t => t + 1)
-  }
-
-  const handleToggleDone = (id: string, done: boolean) => {
-    const task = readTask(id)
-    if (!task) return
-    const patch = toggleDonePatch(task, done)
-    if (!patch) return
-    patchTask.mutate({ estimateId, id, patch }, { onSettled: bumpReset })
   }
 
   const handleSetStatus = (id: string, status: TaskStatus) => {
@@ -211,7 +206,6 @@ export const TaskListView: FC<Props> = ({ estimateId, onGoToCatalog }) => {
           tasks={tasks}
           isPending={isPending}
           resetToken={String(resetToken)}
-          onToggleDone={handleToggleDone}
           onSetStatus={handleSetStatus}
           onSetProgress={handleSetProgress}
           onMove={handleMove}
@@ -224,6 +218,12 @@ export const TaskListView: FC<Props> = ({ estimateId, onGoToCatalog }) => {
           }}
           onOpenCatalog={() => {
             setCatalogOpen(true)
+          }}
+          onOpenMerge={() => {
+            setMergeOpen(true)
+          }}
+          onOpenSplit={task => {
+            setSplitTarget(task)
           }}
         />
       )}
@@ -296,6 +296,49 @@ export const TaskListView: FC<Props> = ({ estimateId, onGoToCatalog }) => {
           nextPosition={tasks.length}
           onClose={() => {
             setEditTarget(null)
+          }}
+        />
+      )}
+
+      {mergeOpen && (
+        <MergeTasksModal
+          tasks={tasks}
+          isPending={replaceTasks.isPending}
+          onMerge={updatedTasks => {
+            replaceTasks.mutate(
+              { estimateId, tasks: updatedTasks },
+              {
+                onSuccess: () => {
+                  setMergeOpen(false)
+                  bumpReset()
+                },
+              },
+            )
+          }}
+          onClose={() => {
+            setMergeOpen(false)
+          }}
+        />
+      )}
+
+      {splitTarget !== null && (
+        <SplitTaskModal
+          task={splitTarget}
+          allTasks={tasks}
+          isPending={replaceTasks.isPending}
+          onSplit={updatedTasks => {
+            replaceTasks.mutate(
+              { estimateId, tasks: updatedTasks },
+              {
+                onSuccess: () => {
+                  setSplitTarget(null)
+                  bumpReset()
+                },
+              },
+            )
+          }}
+          onClose={() => {
+            setSplitTarget(null)
           }}
         />
       )}

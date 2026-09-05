@@ -39,4 +39,8 @@ export const estimatesApi = {
   // Idempotent: 204 even for a foreign or missing id.
   remove: (id: string): Promise<void> =>
     apiFetch(`/api/v1/estimates/${id}`, { method: "DELETE" }),
+
+  // POST /api/v1/estimates/{id}/send — moves DRAFT -> SENT, issues public token and notifies via customer channel
+  send: (id: string): Promise<{ id: string; status: string; publicUrl: string; notified: boolean }> =>
+    apiFetch(`/api/v1/estimates/${id}/send`, { method: "POST" }),
 }
