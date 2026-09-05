@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import type { Project } from "../../../projects/types"
 import { useGetProjectCustomer, useSetProjectCustomer } from "../../../projects/customer.hooks"
 import { useSendEstimate } from "../../estimates.hooks"
+import { buildPublicEstimateUrl } from "../../../../utils/webConfig"
 
 interface Props {
   project: Project
@@ -99,7 +100,7 @@ export const SendEstimateModal: FC<Props> = ({
 
       // 3. Send estimate
       const result = await sendEstimate.mutateAsync(estimateId)
-      setPublicUrl(result.publicUrl)
+      setPublicUrl(buildPublicEstimateUrl(result.publicUrl))
       setIsSent(true)
     } catch (err: unknown) {
       if (err instanceof Error) {

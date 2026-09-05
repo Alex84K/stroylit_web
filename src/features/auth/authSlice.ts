@@ -20,6 +20,10 @@ export type AuthState = {
   isInitialChecked: boolean
   error: string | null
   successMessage: string | null
+  // Ссылка на подключение Telegram (FIRST_SMALL_PLAN.md) — живёт здесь, а
+  // не в user, потому что это одноразовый код на 10 минут, а не свойство
+  // аккаунта; подтверждается переходом в Telegram, не этим запросом.
+  telegramLinkDeepLink: string | null
 }
 
 const initialAccessToken = getAccessToken()
@@ -34,6 +38,7 @@ const initialState: AuthState = {
   isInitialChecked: false,
   error: null,
   successMessage: null,
+  telegramLinkDeepLink: null,
 }
 
 export const registerAsync = createAsyncThunk<
@@ -344,6 +349,55 @@ export const deleteAvatarAsync = createAsyncThunk<
 })
 
 /**
+ * POST /me/telegram-link-code — выпускает одноразовый код на 10 минут
+ * (FIRST_SMALL_PLAN.md, бесплатно на любом тарифе). Возвращает готовую
+ * ссылку; подключение подтверждается переходом по ней в Telegram, не
+ * этим запросом — telegramConnected на user обновится только после
+ * повторного fetchMeAsync.
+ */
+export const issueTelegramLinkCodeAsync = createAsyncThunk<
+  string,
+  undefined,
+  { rejectValue: string }
+>("auth/issueTelegramLinkCode", async (_, { rejectWithValue }) => {
+  try {
+    const data = await apiFetch<{ deepLink: string }>("/api/v1/me/telegram-link-code", {
+      method: "POST",
+    })
+    return data.deepLink
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      if (err.code === "CHANNEL_NOT_CONFIGURED") {
+        return rejectWithValue("В этом окружении Telegram-бот не настроен.")
+      }
+      return rejectWithValue(err.message)
+    }
+    return rejectWithValue("Не удалось получить код подключения.")
+  }
+})
+
+/**
+ * DELETE /me/telegram — отключение. Идемпотентно на сервере (204 всегда,
+ * даже если ничего не было подключено), поэтому здесь просто локально
+ * обнуляем флаг, не дожидаясь повторного /me.
+ */
+export const disconnectTelegramAsync = createAsyncThunk<
+  undefined,
+  undefined,
+  { rejectValue: string }
+>("auth/disconnectTelegram", async (_, { rejectWithValue }) => {
+  try {
+    await apiFetch("/api/v1/me/telegram", { method: "DELETE" })
+    return undefined
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      return rejectWithValue(err.message)
+    }
+    return rejectWithValue("Не удалось отключить Telegram.")
+  }
+})
+
+/**
  * Fetches avatar bytes and returns an object URL.
  * Not a thunk — call from components directly.
  *
@@ -381,6 +435,9 @@ export const authSlice = createSlice({
     },
     clearSuccessMessage: (state) => {
       state.successMessage = null
+    },
+    clearTelegramLink: (state) => {
+      state.telegramLinkDeepLink = null
     },
   },
   extraReducers: (builder) => {
@@ -607,8 +664,37 @@ export const authSlice = createSlice({
         state.isLoading = false
         state.error = action.payload ?? "Failed to delete avatar"
       })
+      // Telegram link (FIRST_SMALL_PLAN.md)
+      .addCase(issueTelegramLinkCodeAsync.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(issueTelegramLinkCodeAsync.fulfilled, (state, action: PayloadAction<string>) => {
+        state.isLoading = false
+        state.telegramLinkDeepLink = action.payload
+      })
+      .addCase(issueTelegramLinkCodeAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload ?? "Failed to issue telegram link code"
+      })
+      .addCase(disconnectTelegramAsync.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(disconnectTelegramAsync.fulfilled, (state) => {
+        state.isLoading = false
+        if (state.user) {
+          state.user.telegramConnected = false
+        }
+        state.telegramLinkDeepLink = null
+        state.successMessage = "Telegram отключён."
+      })
+      .addCase(disconnectTelegramAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload ?? "Failed to disconnect telegram"
+      })
   },
 })
 
-export const { clearAuthError, clearSuccessMessage } = authSlice.actions
+export const { clearAuthError, clearSuccessMessage, clearTelegramLink } = authSlice.actions
 export default authSlice.reducer

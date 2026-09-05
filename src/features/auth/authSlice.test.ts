@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type * as ApiModule from "../../utils/api"
 import type { AppStore } from "../../app/store"
 import { makeStore } from "../../app/store"
+import { ApiError } from "../../utils/api"
 import type { Address, User } from "../../utils/api"
 import {
   deleteAddressAsync,
   deleteAvatarAsync,
+  disconnectTelegramAsync,
+  issueTelegramLinkCodeAsync,
   patchProfileAsync,
   putAddressAsync,
   uploadAvatarAsync,
@@ -42,6 +45,7 @@ const baseUser: User = {
     unit: "кв. 10",
   },
   avatar: { updatedAt: "2026-08-11T00:00:00Z", etag: '"abc"' },
+  telegramConnected: false,
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-08-11T00:00:00Z",
 }
@@ -163,6 +167,41 @@ describe("profile thunks", () => {
     expect(deleteAvatarAsync.fulfilled.match(action)).toBe(true)
     expect(store.getState().auth.user?.avatar).toBeNull()
     expect(store.getState().auth.user?.id).toBe("u1")
+  })
+
+  it("issueTelegramLinkCodeAsync stores the deep link", async () => {
+    mockedApiFetch.mockResolvedValue({ deepLink: "https://t.me/bot?start=LINK_abc" })
+
+    const action = await store.dispatch(issueTelegramLinkCodeAsync())
+
+    expect(issueTelegramLinkCodeAsync.fulfilled.match(action)).toBe(true)
+    expect(store.getState().auth.telegramLinkDeepLink).toBe("https://t.me/bot?start=LINK_abc")
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/v1/me/telegram-link-code", { method: "POST" })
+  })
+
+  it("issueTelegramLinkCodeAsync surfaces a clear message when the bot is not configured", async () => {
+    mockedApiFetch.mockRejectedValue(new ApiError(409, "CHANNEL_NOT_CONFIGURED", "no bot"))
+
+    const action = await store.dispatch(issueTelegramLinkCodeAsync())
+
+    expect(issueTelegramLinkCodeAsync.rejected.match(action)).toBe(true)
+    expect(store.getState().auth.error).toBe("В этом окружении Telegram-бот не настроен.")
+  })
+
+  it("disconnectTelegramAsync clears the connected flag and any pending link", async () => {
+    mockedApiFetch.mockResolvedValue({ ...baseUser, telegramConnected: true })
+    await store.dispatch(patchProfileAsync({ firstName: "Иван", lastName: "Петров", phone: "", inn: "" }))
+    expect(store.getState().auth.user?.telegramConnected).toBe(true)
+
+    mockedApiFetch.mockReset()
+    mockedApiFetch.mockResolvedValue(undefined)
+
+    const action = await store.dispatch(disconnectTelegramAsync())
+
+    expect(disconnectTelegramAsync.fulfilled.match(action)).toBe(true)
+    expect(store.getState().auth.user?.telegramConnected).toBe(false)
+    expect(store.getState().auth.telegramLinkDeepLink).toBeNull()
+    expect(mockedApiFetch).toHaveBeenCalledWith("/api/v1/me/telegram", { method: "DELETE" })
   })
 
   it("registerAsync sends firstName, legalForm, email and password", async () => {

@@ -7,10 +7,14 @@ import {
   changePasswordAsync,
   clearAuthError,
   clearSuccessMessage,
+  clearTelegramLink,
   deleteAccountAsync,
   deleteAddressAsync,
   deleteAvatarAsync,
+  disconnectTelegramAsync,
   fetchAvatarUrl,
+  fetchMeAsync,
+  issueTelegramLinkCodeAsync,
   logoutAllAsync,
   logoutAsync,
   patchProfileAsync,
@@ -39,7 +43,9 @@ function addressFromUser(addr: Address | null | undefined): Address {
 export const ProfilePage: FC = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { user, isLoading, error, successMessage } = useAppSelector((state) => state.auth)
+  const { user, isLoading, error, successMessage, telegramLinkDeepLink } = useAppSelector(
+    (state) => state.auth,
+  )
 
   // ---- scalar form state ----
   const [firstName, setFirstName] = useState("")
@@ -218,6 +224,25 @@ export const ProfilePage: FC = () => {
     void dispatch(deleteAvatarAsync())
     setAvatar(null)
     avatarEtagShownRef.current = null
+  }
+
+  // ---- telegram (FIRST_SMALL_PLAN.md) ----
+  const handleConnectTelegram = () => {
+    void dispatch(issueTelegramLinkCodeAsync())
+  }
+
+  const handleCancelTelegramLink = () => {
+    dispatch(clearTelegramLink())
+  }
+
+  // /me не обновляется само по факту перехода в Telegram — там нет вебхука
+  // в браузер, только ручная проверка.
+  const handleCheckTelegramConnection = () => {
+    void dispatch(fetchMeAsync())
+  }
+
+  const handleDisconnectTelegram = () => {
+    void dispatch(disconnectTelegramAsync())
   }
 
   // ---- password ----
@@ -541,6 +566,75 @@ export const ProfilePage: FC = () => {
               <div className="form-text mt-2">
                 JPEG или PNG, не более 512 КБ и 2048×2048 пикселей.
               </div>
+            </div>
+          </div>
+
+          {/* Telegram Card (FIRST_SMALL_PLAN.md) — бесплатно на любом тарифе,
+              та же логика, что у email-уведомлений владельцу. */}
+          <div className="card shadow-sm border-0 rounded-4 mb-4">
+            <div className="card-body p-4">
+              <h5 className="card-title fw-bold mb-3">Telegram</h5>
+              <div className="form-check form-switch mb-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="telegramSwitch"
+                  checked={Boolean(user?.telegramConnected) || Boolean(telegramLinkDeepLink)}
+                  disabled={isLoading || Boolean(telegramLinkDeepLink)}
+                  onChange={() => {
+                    if (user?.telegramConnected) {
+                      handleDisconnectTelegram()
+                    } else if (!telegramLinkDeepLink) {
+                      handleConnectTelegram()
+                    }
+                  }}
+                />
+                <label className="form-check-label fw-semibold" htmlFor="telegramSwitch">
+                  Уведомления в Telegram
+                </label>
+              </div>
+
+              {user?.telegramConnected ? (
+                <div className="text-success small">Telegram подключён.</div>
+              ) : telegramLinkDeepLink ? (
+                <div>
+                  <p className="text-muted small mb-2">
+                    Перейдите по ссылке и нажмите «Start» в Telegram, чтобы подтвердить
+                    подключение. Код действует 10 минут.
+                  </p>
+                  <div className="d-flex flex-wrap gap-2">
+                    <a
+                      href={telegramLinkDeepLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary btn-sm py-1 px-2 small fw-bold"
+                    >
+                      Открыть в Telegram
+                    </a>
+                    <button
+                      type="button"
+                      className="btn btn-outline-dark btn-sm py-1 px-2 small"
+                      onClick={handleCheckTelegramConnection}
+                      disabled={isLoading}
+                    >
+                      Проверить подключение
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm py-1 px-2 small"
+                      onClick={handleCancelTelegramLink}
+                      disabled={isLoading}
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted small mb-0">
+                  Подключите Telegram, чтобы включить этот канал связи. Бесплатно на любом тарифе.
+                </p>
+              )}
             </div>
           </div>
 
